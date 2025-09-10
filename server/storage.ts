@@ -33,6 +33,9 @@ export interface IStorage {
   getUserSubscription(userId: string): Promise<Subscription | undefined>;
   updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
   
+  // Stripe operations
+  updateUserStripeInfo(userId: string, stripeInfo: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined>;
+  
   // Data export
   exportUserData(userId: string): Promise<{
     user: User;
@@ -73,6 +76,8 @@ export class MemStorage implements IStorage {
       emailVerified: false,
       twoFactorEnabled: false,
       twoFactorSecret: null,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
       preferences: {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -221,6 +226,20 @@ export class MemStorage implements IStorage {
     const updatedSubscription = { ...subscription, ...updates, updatedAt: new Date() };
     this.subscriptions.set(userId, updatedSubscription);
     return updatedSubscription;
+  }
+
+  // Stripe operations
+  async updateUserStripeInfo(userId: string, stripeInfo: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      ...stripeInfo, 
+      updatedAt: new Date() 
+    };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
   }
 
   // Data export
