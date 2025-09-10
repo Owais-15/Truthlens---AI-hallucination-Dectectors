@@ -127,7 +127,7 @@ export function Analyzer() {
             <Button 
               onClick={handleAnalyze}
               disabled={analysisMutation.isPending || !content.trim()}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground dark:bg-primary dark:hover:bg-primary/90 dark:text-primary-foreground"
               data-testid="button-analyze"
             >
               {analysisMutation.isPending ? (

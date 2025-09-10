@@ -35,12 +35,12 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
 
   // Header
   doc.setFontSize(20);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('TruthLens Analysis Report', margin, yPosition);
   yPosition += 15;
 
   doc.setFontSize(12);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, margin, yPosition);
   yPosition += 10;
 
@@ -49,7 +49,7 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
 
   // Factuality Score
   doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('Factuality Score', margin, yPosition);
   yPosition += 10;
 
@@ -62,25 +62,25 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
   yPosition += 15;
 
   doc.setFontSize(12);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   yPosition = addWrappedText(data.overallAssessment, margin, yPosition, contentWidth);
   yPosition += 15;
 
   // Summary
   doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('Analysis Summary', margin, yPosition);
   yPosition += 10;
 
   doc.setFontSize(12);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   yPosition = addWrappedText(data.summary, margin, yPosition, contentWidth);
   yPosition += 15;
 
   // Issues
   if (data.issues.length > 0) {
     doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text('Issues Detected', margin, yPosition);
     yPosition += 15;
 
@@ -99,46 +99,46 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
       };
       
       doc.setFontSize(12);
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(severityColors[issue.severity][0], severityColors[issue.severity][1], severityColors[issue.severity][2]);
       doc.text(`${issue.severity.toUpperCase()} SEVERITY`, margin, yPosition);
       doc.setTextColor(0, 0, 0);
       yPosition += 8;
 
       // Flagged text
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('Flagged Text:', margin, yPosition);
       yPosition += 6;
 
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
       yPosition = addWrappedText(issue.text, margin, yPosition, contentWidth, 10);
       yPosition += 8;
 
       // Explanation
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('Explanation:', margin, yPosition);
       yPosition += 6;
 
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
       yPosition = addWrappedText(issue.explanation, margin, yPosition, contentWidth, 10);
       yPosition += 8;
 
       // Correction
-      doc.setFont(undefined, 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('Suggested Correction:', margin, yPosition);
       yPosition += 6;
 
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'normal');
       yPosition = addWrappedText(issue.correction, margin, yPosition, contentWidth, 10);
       yPosition += 8;
 
       // Sources
       if (issue.sources.length > 0) {
-        doc.setFont(undefined, 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.text('Sources:', margin, yPosition);
         yPosition += 6;
 
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'normal');
         issue.sources.forEach((source) => {
           yPosition = addWrappedText(`• ${source.title}`, margin + 5, yPosition, contentWidth - 5, 9);
           yPosition = addWrappedText(`  ${source.url}`, margin + 5, yPosition, contentWidth - 5, 8);
@@ -159,12 +159,12 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
     }
 
     doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text('Recommendations', margin, yPosition);
     yPosition += 15;
 
     doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     data.recommendations.forEach((recommendation) => {
       yPosition = addWrappedText(`• ${recommendation}`, margin, yPosition, contentWidth);
       yPosition += 8;
@@ -175,21 +175,21 @@ export async function generatePDFReport(data: PDFData, originalContent: string):
   if (yPosition < doc.internal.pageSize.height - 100) {
     yPosition += 10;
     doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text('Original Content', margin, yPosition);
     yPosition += 15;
 
     doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     yPosition = addWrappedText(originalContent, margin, yPosition, contentWidth, 10);
   }
 
   // Footer
-  const pageCount = doc.internal.getNumberOfPages();
+  const pageCount = (doc as any).internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
+    (doc as any).setPage(i);
     doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.text(
       'Generated by TruthLens - AI Fact Checking Platform',
       margin,
