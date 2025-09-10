@@ -4,7 +4,8 @@ import bcrypt from 'bcrypt';
 import { storage } from "./storage.js";
 import { performComprehensiveAnalysis } from "./services/analysis.js";
 import { registerUser, loginUser, verifyToken, extractTokenFromRequest } from "./services/auth.js";
-import { sendVerificationEmail, sendPasswordResetEmail, generateSecureToken, isTokenExpired } from "./services/email.js";
+import { sendVerificationEmail, sendPasswordResetEmail, generateSecureToken, isTokenExpired, validateEmailService, getEmailServiceStatus, sendTestEmail } from "./services/email.js";
+import { performanceMiddleware, getPerformanceMetrics, runStressTest, checkMemoryLeaks, checkDeploymentReadiness } from "./services/monitoring.js";
 import { generateTwoFactorSecret, verifyTwoFactorToken, generateBackupCodes } from "./services/twoFactor.js";
 import { 
   registerSchema, 
@@ -33,6 +34,9 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Performance monitoring middleware (applies to all routes)
+  app.use(performanceMiddleware);
+
   // Authentication middleware
   const authenticateUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const token = extractTokenFromRequest(req.headers.authorization);
@@ -577,9 +581,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString(),
       services: {
         gemini: !!process.env.GEMINI_API_KEY,
-        exa: !!process.env.EXA_API_KEY
+        exa: !!process.env.EXA_API_KEY,
+        sendgrid: !!process.env.SENDGRID_API_KEY,
+        email: getEmailServiceStatus()
       }
     });
+  });
+
+  // Email service monitoring and testing endpoints
+  app.get('/api/email/status', async (req, res) => {
+    try {
+      const status = getEmailServiceStatus();
+      const validation = await validateEmailService();
+      
+      res.json({
+        ...status,
+        validation: validation.isValid,
+        validationError: validation.error,
+        validationDetails: validation.details
+      });
+    } catch (error) {
+      console.error('Email status route error:', error);
+      res.status(500).json({ message: 'Failed to get email status' });
+    }
+  });
+
+  app.post('/api/email/test', authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { email: testEmail } = req.body;
+      const targetEmail = testEmail || req.user.email;
+      
+      if (!targetEmail) {
+        return res.status(400).json({ message: 'Email address required' });
+      }
+
+      console.log(`[EMAIL] Testing email service for ${targetEmail}`);
+      const result = await sendTestEmail(targetEmail);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Test email sent successfully to ${targetEmail}`,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Test email failed',
+          error: result.error 
+        });
+      }
+    } catch (error) {
+      console.error('Email test route error:', error);
+      res.status(500).json({ message: 'Failed to send test email' });
+    }
+  });
+
+  app.post('/api/email/validate', async (req, res) => {
+    try {
+      console.log('[EMAIL] Validating email service configuration');
+      const validation = await validateEmailService();
+      
+      res.json({
+        isValid: validation.isValid,
+        error: validation.error,
+        details: validation.details,
+        timestamp: new Date().toISOString(),
+        configuration: getEmailServiceStatus().configuration
+      });
+    } catch (error) {
+      console.error('Email validation route error:', error);
+      res.status(500).json({ message: 'Failed to validate email service' });
+    }
+  });
+
+  // Performance monitoring and stress testing endpoints
+  app.get('/api/monitoring/metrics', (req, res) => {
+    try {
+      const metrics = getPerformanceMetrics();
+      const memoryCheck = checkMemoryLeaks();
+      
+      res.json({
+        performance: metrics,
+        memory: memoryCheck,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Monitoring metrics route error:', error);
+      res.status(500).json({ message: 'Failed to get monitoring metrics' });
+    }
+  });
+
+  app.post('/api/monitoring/stress-test', async (req, res) => {
+    try {
+      const { concurrentUsers = 5, duration = 15000 } = req.body;
+      const baseUrl = req.headers.origin || `http://localhost:5000`;
+      
+      console.log(`[STRESS TEST] Starting stress test with ${concurrentUsers} users for ${duration}ms`);
+      
+      const result = await runStressTest(baseUrl, concurrentUsers, duration);
+      
+      res.json({
+        testResult: result,
+        recommendation: result.success 
+          ? 'Application is performing well under load' 
+          : 'Application may need optimization before production deployment'
+      });
+    } catch (error) {
+      console.error('Stress test route error:', error);
+      res.status(500).json({ message: 'Failed to run stress test' });
+    }
+  });
+
+  app.get('/api/monitoring/deployment-readiness', async (req, res) => {
+    try {
+      const baseUrl = req.headers.origin || `http://localhost:5000`;
+      const readiness = await checkDeploymentReadiness(baseUrl);
+      
+      res.json({
+        ...readiness,
+        recommendation: readiness.ready 
+          ? 'Application is ready for production deployment' 
+          : 'Address the failed checks before deploying to production'
+      });
+    } catch (error) {
+      console.error('Deployment readiness route error:', error);
+      res.status(500).json({ message: 'Failed to check deployment readiness' });
+    }
   });
 
   const httpServer = createServer(app);
