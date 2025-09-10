@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Analysis, type InsertAnalysis, type Usage } from "@shared/schema";
+import { type User, type InsertUser, type Analysis, type InsertAnalysis, type Usage, type VerificationToken, type Subscription } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -21,17 +21,40 @@ export interface IStorage {
     avgAccuracy: number;
     issuesFound: number;
   }>;
+  
+  // Verification tokens
+  createVerificationToken(userId: string, token: string, type: string, expiresAt: Date): Promise<VerificationToken>;
+  getVerificationToken(token: string): Promise<VerificationToken | undefined>;
+  deleteVerificationToken(token: string): Promise<boolean>;
+  deleteExpiredTokens(): Promise<void>;
+  
+  // Subscription operations
+  createSubscription(userId: string, planType: string, analysisLimit: number): Promise<Subscription>;
+  getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
+  
+  // Data export
+  exportUserData(userId: string): Promise<{
+    user: User;
+    analyses: Analysis[];
+    usage: Usage[];
+    subscription?: Subscription;
+  }>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private analyses: Map<string, Analysis>;
   private usage: Map<string, Usage>;
+  private verificationTokens: Map<string, VerificationToken>;
+  private subscriptions: Map<string, Subscription>;
 
   constructor() {
     this.users = new Map();
     this.analyses = new Map();
     this.usage = new Map();
+    this.verificationTokens = new Map();
+    this.subscriptions = new Map();
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -48,6 +71,9 @@ export class MemStorage implements IStorage {
       ...insertUser,
       id,
       emailVerified: false,
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      preferences: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -132,6 +158,91 @@ export class MemStorage implements IStorage {
     }, 0);
 
     return { totalAnalyses, avgAccuracy, issuesFound };
+  }
+
+  // Verification tokens
+  async createVerificationToken(userId: string, token: string, type: string, expiresAt: Date): Promise<VerificationToken> {
+    const id = randomUUID();
+    const verificationToken: VerificationToken = {
+      id,
+      userId,
+      token,
+      type,
+      expiresAt,
+      createdAt: new Date(),
+    };
+    this.verificationTokens.set(token, verificationToken);
+    return verificationToken;
+  }
+
+  async getVerificationToken(token: string): Promise<VerificationToken | undefined> {
+    return this.verificationTokens.get(token);
+  }
+
+  async deleteVerificationToken(token: string): Promise<boolean> {
+    return this.verificationTokens.delete(token);
+  }
+
+  async deleteExpiredTokens(): Promise<void> {
+    const now = new Date();
+    for (const [token, tokenData] of this.verificationTokens.entries()) {
+      if (tokenData.expiresAt < now) {
+        this.verificationTokens.delete(token);
+      }
+    }
+  }
+
+  // Subscription operations
+  async createSubscription(userId: string, planType: string, analysisLimit: number): Promise<Subscription> {
+    const id = randomUUID();
+    const subscription: Subscription = {
+      id,
+      userId,
+      planType,
+      stripeSubscriptionId: null,
+      stripeCustomerId: null,
+      status: 'active',
+      analysisLimit,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.subscriptions.set(userId, subscription);
+    return subscription;
+  }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    return this.subscriptions.get(userId);
+  }
+
+  async updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+    const subscription = this.subscriptions.get(userId);
+    if (!subscription) return undefined;
+    
+    const updatedSubscription = { ...subscription, ...updates, updatedAt: new Date() };
+    this.subscriptions.set(userId, updatedSubscription);
+    return updatedSubscription;
+  }
+
+  // Data export
+  async exportUserData(userId: string): Promise<{
+    user: User;
+    analyses: Analysis[];
+    usage: Usage[];
+    subscription?: Subscription;
+  }> {
+    const user = await this.getUser(userId);
+    if (!user) throw new Error('User not found');
+    
+    const analyses = await this.getUserAnalyses(userId, 1000); // Get all analyses
+    const usage = Array.from(this.usage.values()).filter(u => u.userId === userId);
+    const subscription = await this.getUserSubscription(userId);
+    
+    return {
+      user,
+      analyses,
+      usage,
+      subscription,
+    };
   }
 }
 

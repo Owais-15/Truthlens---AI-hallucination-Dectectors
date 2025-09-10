@@ -1,9 +1,23 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import bcrypt from 'bcrypt';
 import { storage } from "./storage.js";
 import { performComprehensiveAnalysis } from "./services/analysis.js";
 import { registerUser, loginUser, verifyToken, extractTokenFromRequest } from "./services/auth.js";
-import { registerSchema, loginSchema, insertAnalysisSchema, type User } from "@shared/schema";
+import { sendVerificationEmail, sendPasswordResetEmail, generateSecureToken, isTokenExpired } from "./services/email.js";
+import { generateTwoFactorSecret, verifyTwoFactorToken, generateBackupCodes } from "./services/twoFactor.js";
+import { 
+  registerSchema, 
+  loginSchema, 
+  insertAnalysisSchema, 
+  updateProfileSchema,
+  changePasswordSchema,
+  resetPasswordSchema,
+  twoFactorSetupSchema,
+  twoFactorVerifySchema,
+  subscriptionSchema,
+  type User 
+} from "@shared/schema";
 
 interface AuthenticatedRequest extends Request {
   user: User;
@@ -169,6 +183,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Usage route error:', error);
       res.status(500).json({ message: 'Failed to fetch usage' });
+    }
+  });
+
+  // Profile management routes
+  app.put('/api/user/profile', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = updateProfileSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: 'Validation error',
+          errors: validation.error.errors 
+        });
+      }
+
+      const updates = validation.data;
+      
+      // If email is being changed, check if it's already taken
+      if (updates.email && updates.email !== req.user.email) {
+        const existingUser = await storage.getUserByEmail(updates.email);
+        if (existingUser) {
+          return res.status(400).json({ message: 'Email already in use' });
+        }
+        // Reset email verification if email changes
+        updates.emailVerified = false;
+      }
+
+      const updatedUser = await storage.updateUser(req.user.id, updates);
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Send verification email if email was changed
+      if (updates.email && updates.email !== req.user.email) {
+        const token = generateSecureToken();
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        await storage.createVerificationToken(req.user.id, token, 'email_verification', expiresAt);
+        await sendVerificationEmail(updates.email, updates.name || req.user.name, token);
+      }
+
+      res.json({ user: updatedUser });
+    } catch (error) {
+      console.error('Profile update route error:', error);
+      res.status(500).json({ message: 'Profile update failed' });
+    }
+  });
+
+  app.put('/api/user/password', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = changePasswordSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: 'Validation error',
+          errors: validation.error.errors 
+        });
+      }
+
+      const { currentPassword, newPassword } = validation.data;
+      
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, req.user.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      
+      const updatedUser = await storage.updateUser(req.user.id, { 
+        password: hashedNewPassword 
+      });
+
+      res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Password change route error:', error);
+      res.status(500).json({ message: 'Password change failed' });
+    }
+  });
+
+  // Email verification routes
+  app.post('/api/auth/send-verification', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user.emailVerified) {
+        return res.status(400).json({ message: 'Email already verified' });
+      }
+
+      const token = generateSecureToken();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      await storage.createVerificationToken(req.user.id, token, 'email_verification', expiresAt);
+      
+      const emailSent = await sendVerificationEmail(req.user.email, req.user.name, token);
+      
+      res.json({ 
+        message: 'Verification email sent',
+        emailSent: emailSent
+      });
+    } catch (error) {
+      console.error('Send verification route error:', error);
+      res.status(500).json({ message: 'Failed to send verification email' });
+    }
+  });
+
+  app.get('/api/auth/verify-email', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ message: 'Invalid verification token' });
+      }
+
+      const verificationToken = await storage.getVerificationToken(token);
+      if (!verificationToken || verificationToken.type !== 'email_verification') {
+        return res.status(400).json({ message: 'Invalid verification token' });
+      }
+
+      if (isTokenExpired(verificationToken.expiresAt)) {
+        await storage.deleteVerificationToken(token);
+        return res.status(400).json({ message: 'Verification token expired' });
+      }
+
+      // Mark user as verified
+      await storage.updateUser(verificationToken.userId, { emailVerified: true });
+      await storage.deleteVerificationToken(token);
+
+      res.json({ message: 'Email verified successfully' });
+    } catch (error) {
+      console.error('Email verification route error:', error);
+      res.status(500).json({ message: 'Email verification failed' });
+    }
+  });
+
+  // Two-factor authentication routes
+  app.post('/api/user/2fa/setup', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user.twoFactorEnabled) {
+        return res.status(400).json({ message: '2FA is already enabled' });
+      }
+
+      const twoFactorSetup = await generateTwoFactorSecret(req.user.email);
+      
+      res.json({
+        qrCodeUrl: twoFactorSetup.qrCodeUrl,
+        manualEntryKey: twoFactorSetup.manualEntryKey,
+        secret: twoFactorSetup.secret
+      });
+    } catch (error) {
+      console.error('2FA setup route error:', error);
+      res.status(500).json({ message: '2FA setup failed' });
+    }
+  });
+
+  app.post('/api/user/2fa/enable', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = twoFactorSetupSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: 'Validation error',
+          errors: validation.error.errors 
+        });
+      }
+
+      const { secret, token } = validation.data;
+      
+      // Verify the token with the secret
+      const isValid = verifyTwoFactorToken(secret, token);
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      // Enable 2FA for the user
+      const backupCodes = generateBackupCodes();
+      await storage.updateUser(req.user.id, {
+        twoFactorEnabled: true,
+        twoFactorSecret: secret,
+        preferences: {
+          ...req.user.preferences,
+          backupCodes
+        }
+      });
+
+      res.json({ 
+        message: '2FA enabled successfully',
+        backupCodes
+      });
+    } catch (error) {
+      console.error('2FA enable route error:', error);
+      res.status(500).json({ message: 'Failed to enable 2FA' });
+    }
+  });
+
+  app.post('/api/user/2fa/disable', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = twoFactorVerifySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: 'Validation error',
+          errors: validation.error.errors 
+        });
+      }
+
+      const { token } = validation.data;
+      
+      if (!req.user.twoFactorEnabled || !req.user.twoFactorSecret) {
+        return res.status(400).json({ message: '2FA is not enabled' });
+      }
+
+      // Verify the token
+      const isValid = verifyTwoFactorToken(req.user.twoFactorSecret, token);
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      // Disable 2FA
+      await storage.updateUser(req.user.id, {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        preferences: {
+          ...req.user.preferences,
+          backupCodes: undefined
+        }
+      });
+
+      res.json({ message: '2FA disabled successfully' });
+    } catch (error) {
+      console.error('2FA disable route error:', error);
+      res.status(500).json({ message: 'Failed to disable 2FA' });
+    }
+  });
+
+  // Data export route
+  app.get('/api/user/export', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userData = await storage.exportUserData(req.user.id);
+      
+      // Remove sensitive information from export
+      const sanitizedData = {
+        ...userData,
+        user: {
+          ...userData.user,
+          password: '[REDACTED]',
+          twoFactorSecret: userData.user.twoFactorSecret ? '[REDACTED]' : null
+        }
+      };
+
+      res.json({
+        exportedAt: new Date().toISOString(),
+        data: sanitizedData
+      });
+    } catch (error) {
+      console.error('Data export route error:', error);
+      res.status(500).json({ message: 'Data export failed' });
+    }
+  });
+
+  // Subscription routes
+  app.get('/api/user/subscription', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      let subscription = await storage.getUserSubscription(req.user.id);
+      
+      // Create default free subscription if none exists
+      if (!subscription) {
+        subscription = await storage.createSubscription(req.user.id, 'free', 100);
+      }
+
+      res.json({ subscription });
+    } catch (error) {
+      console.error('Get subscription route error:', error);
+      res.status(500).json({ message: 'Failed to fetch subscription' });
+    }
+  });
+
+  app.post('/api/user/subscription', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validation = subscriptionSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: 'Validation error',
+          errors: validation.error.errors 
+        });
+      }
+
+      const { planType } = validation.data;
+      
+      // Define plan limits
+      const planLimits = {
+        free: 100,
+        pro: 1000,
+        enterprise: 10000
+      };
+
+      const analysisLimit = planLimits[planType as keyof typeof planLimits] || 100;
+      
+      let subscription = await storage.getUserSubscription(req.user.id);
+      
+      if (subscription) {
+        subscription = await storage.updateSubscription(req.user.id, {
+          planType,
+          analysisLimit
+        });
+      } else {
+        subscription = await storage.createSubscription(req.user.id, planType, analysisLimit);
+      }
+
+      res.json({ subscription });
+    } catch (error) {
+      console.error('Update subscription route error:', error);
+      res.status(500).json({ message: 'Subscription update failed' });
     }
   });
 
