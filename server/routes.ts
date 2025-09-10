@@ -18,9 +18,18 @@ import {
   subscriptionSchema,
   type User 
 } from "@shared/schema";
+import Stripe from "stripe";
 
 interface AuthenticatedRequest extends Request {
   user: User;
+}
+
+// Initialize Stripe
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-06-20",
+  });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -449,6 +458,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Get subscription route error:', error);
       res.status(500).json({ message: 'Failed to fetch subscription' });
+    }
+  });
+
+  // Stripe subscription creation
+  app.post('/api/create-subscription', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!stripe) {
+        return res.status(500).json({ message: 'Stripe not configured' });
+      }
+
+      const { planId } = req.body;
+      
+      // Define plan pricing and limits
+      const planConfig: Record<string, { amount: number; interval: 'month' | 'year'; analysisLimit: number; planType: string }> = {
+        'pro-monthly': { amount: 1900, interval: 'month', analysisLimit: 500, planType: 'pro' },
+        'pro-yearly': { amount: 19000, interval: 'year', analysisLimit: 500, planType: 'pro' },
+        'enterprise-monthly': { amount: 9900, interval: 'month', analysisLimit: 10000, planType: 'enterprise' }
+      };
+
+      const config = planConfig[planId];
+      if (!config) {
+        return res.status(400).json({ message: 'Invalid plan ID' });
+      }
+
+      // Create or retrieve Stripe customer
+      let stripeCustomerId = req.user.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: req.user.email,
+          name: req.user.name,
+          metadata: { userId: req.user.id.toString() }
+        });
+        stripeCustomerId = customer.id;
+        await storage.updateUserStripeInfo(req.user.id, { stripeCustomerId });
+      }
+
+      // Create Stripe Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `TruthLens ${config.planType.charAt(0).toUpperCase() + config.planType.slice(1)} Plan`,
+                description: `${config.analysisLimit} fact-checks per month`,
+              },
+              unit_amount: config.amount,
+              recurring: {
+                interval: config.interval,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.origin}/dashboard?success=true`,
+        cancel_url: `${req.headers.origin}/subscribe?canceled=true`,
+        metadata: {
+          userId: req.user.id.toString(),
+          planType: config.planType,
+          analysisLimit: config.analysisLimit.toString(),
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error('Create subscription route error:', error);
+      res.status(500).json({ message: 'Subscription creation failed' });
     }
   });
 

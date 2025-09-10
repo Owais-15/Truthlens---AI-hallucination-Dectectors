@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { Microscope, History, FileText, User } from 'lucide-react';
+import { Microscope, History, FileText, User, CreditCard } from 'lucide-react';
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -16,6 +16,7 @@ export function Sidebar() {
     { href: '/dashboard', icon: Microscope, label: 'Analyzer' },
     { href: '/history', icon: History, label: 'History' },
     { href: '/reports', icon: FileText, label: 'Reports' },
+    { href: '/subscribe', icon: CreditCard, label: 'Upgrade' },
     { href: '/profile', icon: User, label: 'Profile' },
   ];
 

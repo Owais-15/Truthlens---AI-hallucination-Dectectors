@@ -10,6 +10,8 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
+import Privacy from "@/pages/privacy";
+import Subscribe from "@/pages/subscribe";
 
 // Protected Route wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -37,6 +39,8 @@ function Router() {
       <Route path="/" component={() => createElement(ProtectedRoute, { component: Dashboard })} />
       <Route path="/dashboard" component={() => createElement(ProtectedRoute, { component: Dashboard })} />
       <Route path="/profile" component={() => createElement(ProtectedRoute, { component: Profile })} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/subscribe" component={() => createElement(ProtectedRoute, { component: Subscribe })} />
       <Route component={NotFound} />
     </Switch>
   );

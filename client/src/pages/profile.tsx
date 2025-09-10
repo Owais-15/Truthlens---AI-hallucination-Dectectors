@@ -425,7 +425,13 @@ export default function Profile() {
                       >
                         Export My Data
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full" data-testid="button-privacy-settings">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full" 
+                        onClick={() => window.location.href = '/privacy'}
+                        data-testid="button-privacy-settings"
+                      >
                         Privacy Settings
                       </Button>
                     </div>
