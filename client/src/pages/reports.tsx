@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigation } from '@/components/navigation';
 import { Sidebar } from '@/components/sidebar';
+import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -166,22 +167,20 @@ export default function Reports() {
         
         <main className="flex-1 p-6 max-w-7xl mx-auto">
           <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold" data-testid="page-title">Reports & Analytics</h1>
-                <p className="text-muted-foreground">Comprehensive insights into your fact-checking activity</p>
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={handleShareReport} data-testid="button-share-report">
-                  <Share className="w-4 h-4 mr-2" />
-                  Share
-                </Button>
-                <Button onClick={handleExportSummaryReport} data-testid="button-export-summary">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Summary
-                </Button>
-              </div>
+            <PageHeader 
+              title="Reports & Analytics" 
+              subtitle="Comprehensive insights into your fact-checking activity"
+            />
+            
+            <div className="flex justify-end space-x-2 mb-4">
+              <Button variant="outline" onClick={handleShareReport} data-testid="button-share-report">
+                <Share className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+              <Button onClick={handleExportSummaryReport} data-testid="button-export-summary">
+                <Download className="w-4 h-4 mr-2" />
+                Export Summary
+              </Button>
             </div>
 
             {/* Summary Cards */}

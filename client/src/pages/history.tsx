@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigation } from '@/components/navigation';
 import { Sidebar } from '@/components/sidebar';
+import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,12 +139,12 @@ export default function History() {
         
         <main className="flex-1 p-6 max-w-7xl mx-auto">
           <div className="space-y-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold" data-testid="page-title">Analysis History</h1>
-                <p className="text-muted-foreground">View and manage your past fact-checking analyses</p>
-              </div>
+            <PageHeader 
+              title="Analysis History" 
+              subtitle="View and manage your past fact-checking analyses"
+            />
+            
+            <div className="flex justify-end mb-4">
               <Button variant="outline" data-testid="button-export-all">
                 <Download className="w-4 h-4 mr-2" />
                 Export All
