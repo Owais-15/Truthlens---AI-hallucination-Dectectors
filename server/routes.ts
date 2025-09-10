@@ -81,12 +81,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/auth/me', authenticateUser, async (req, res) => {
+  app.get('/api/auth/me', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     res.json({ user: req.user });
   });
 
   // Analysis routes
-  app.post('/api/analysis', authenticateUser, async (req, res) => {
+  app.post('/api/analysis', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { content } = req.body;
       if (!content || typeof content !== 'string') {
@@ -118,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/analysis/history', authenticateUser, async (req, res) => {
+  app.get('/api/analysis/history', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const analyses = await storage.getUserAnalyses(req.user.id, limit);
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/analysis/:id', authenticateUser, async (req, res) => {
+  app.get('/api/analysis/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { id } = req.params;
       const analysis = await storage.getAnalysis(id);
@@ -146,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User stats routes
-  app.get('/api/user/stats', authenticateUser, async (req, res) => {
+  app.get('/api/user/stats', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await storage.getUserStats(req.user.id);
       res.json({ stats });
@@ -156,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/usage', authenticateUser, async (req, res) => {
+  app.get('/api/user/usage', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
       const usage = await storage.getUsage(req.user.id, currentMonth);
