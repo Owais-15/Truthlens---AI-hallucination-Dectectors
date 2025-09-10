@@ -358,9 +358,9 @@ export default function Profile() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <span className="text-sm">Email Verified</span>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={user.emailVerified ? "default" : "secondary"}>
                           {user.emailVerified ? "Verified" : "Pending"}
                         </Badge>
@@ -370,6 +370,7 @@ export default function Profile() {
                             size="sm" 
                             onClick={handleSendEmailVerification}
                             data-testid="button-send-verification"
+                            className="whitespace-nowrap"
                           >
                             Send Email
                           </Button>
