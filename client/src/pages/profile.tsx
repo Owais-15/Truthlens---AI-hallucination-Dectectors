@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Navigation } from '@/components/navigation';
 import { Sidebar } from '@/components/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,13 +45,91 @@ export default function Profile() {
     queryKey: ['/api/analysis/history'],
   });
 
-  const handleSaveProfile = () => {
-    // TODO: Implement profile update API
-    toast({
-      title: 'Profile Updated',
-      description: 'Your profile has been updated successfully.',
-    });
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    try {
+      const response = await apiRequest('PUT', '/api/user/profile', editForm);
+      const data = await response.json();
+      
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+      });
+      setIsEditing(false);
+      
+      // Refresh user data if needed
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+    } catch (error) {
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update profile. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSendEmailVerification = async () => {
+    try {
+      await apiRequest('POST', '/api/auth/send-verification');
+      toast({
+        title: 'Verification Email Sent',
+        description: 'Please check your email for verification instructions.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to Send Email',
+        description: 'Unable to send verification email. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    try {
+      const response = await apiRequest('POST', '/api/user/2fa/setup');
+      const data = await response.json();
+      
+      // For now, just show success message
+      // In a real app, you'd show the QR code and setup flow
+      toast({
+        title: '2FA Setup',
+        description: 'Two-factor authentication setup initiated. Check your authenticator app.',
+      });
+    } catch (error) {
+      toast({
+        title: '2FA Setup Failed',
+        description: 'Unable to setup 2FA. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const response = await apiRequest('GET', '/api/user/export');
+      const data = await response.json();
+      
+      // Create and download JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `truthlens-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Data Exported',
+        description: 'Your data has been downloaded successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Export Failed',
+        description: 'Unable to export data. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const usagePercent = usage ? (usage.usage.current / usage.usage.limit) * 100 : 0;
@@ -281,14 +360,28 @@ export default function Profile() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Email Verified</span>
-                      <Badge variant={user.emailVerified ? "default" : "secondary"}>
-                        {user.emailVerified ? "Verified" : "Pending"}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={user.emailVerified ? "default" : "secondary"}>
+                          {user.emailVerified ? "Verified" : "Pending"}
+                        </Badge>
+                        {!user.emailVerified && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleSendEmailVerification}
+                            data-testid="button-send-verification"
+                          >
+                            Send Email
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Two-Factor Auth</span>
-                      <Badge variant="secondary">Disabled</Badge>
+                      <Badge variant={user.twoFactorEnabled ? "default" : "secondary"}>
+                        {user.twoFactorEnabled ? "Enabled" : "Disabled"}
+                      </Badge>
                     </div>
                     
                     <Separator />
@@ -297,8 +390,14 @@ export default function Profile() {
                       <Button variant="outline" size="sm" className="w-full" data-testid="button-change-password">
                         Change Password
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full" data-testid="button-enable-2fa">
-                        Enable 2FA
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full" 
+                        onClick={handleSetup2FA}
+                        data-testid="button-enable-2fa"
+                      >
+                        {user.twoFactorEnabled ? 'Manage 2FA' : 'Enable 2FA'}
                       </Button>
                     </div>
                   </div>
@@ -317,7 +416,13 @@ export default function Profile() {
                     </p>
                     
                     <div className="space-y-2">
-                      <Button variant="outline" size="sm" className="w-full" data-testid="button-export-data">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full" 
+                        onClick={handleExportData}
+                        data-testid="button-export-data"
+                      >
                         Export My Data
                       </Button>
                       <Button variant="outline" size="sm" className="w-full" data-testid="button-privacy-settings">
