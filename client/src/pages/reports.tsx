@@ -399,7 +399,7 @@ export default function Reports() {
                           
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                              <span>Low Quality (<60%)</span>
+                              <span>Low Quality (under 60%)</span>
                               <span>{analyses?.analyses?.filter((a: any) => a.factualityScore < 60).length || 0} analyses</span>
                             </div>
                             <Progress 

@@ -12,6 +12,8 @@ import Dashboard from "@/pages/dashboard";
 import Profile from "@/pages/profile";
 import Privacy from "@/pages/privacy";
 import Subscribe from "@/pages/subscribe";
+import History from "@/pages/history";
+import Reports from "@/pages/reports";
 
 // Protected Route wrapper
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -41,6 +43,8 @@ function Router() {
       <Route path="/profile" component={() => createElement(ProtectedRoute, { component: Profile })} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/subscribe" component={() => createElement(ProtectedRoute, { component: Subscribe })} />
+      <Route path="/history" component={() => createElement(ProtectedRoute, { component: History })} />
+      <Route path="/reports" component={() => createElement(ProtectedRoute, { component: Reports })} />
       <Route component={NotFound} />
     </Switch>
   );
