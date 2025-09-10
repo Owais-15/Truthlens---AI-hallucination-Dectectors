@@ -39,7 +39,7 @@ export async function registerUser(email: string, password: string, name: string
 
     return {
       success: true,
-      user: { ...user, password: undefined } as User,
+      user: { ...user, password: '' } as User,
       token
     };
   } catch (error) {
@@ -76,7 +76,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 
     return {
       success: true,
-      user: { ...user, password: undefined } as User,
+      user: { ...user, password: '' } as User,
       token
     };
   } catch (error) {

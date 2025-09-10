@@ -1,13 +1,17 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
 import { performComprehensiveAnalysis } from "./services/analysis.js";
 import { registerUser, loginUser, verifyToken, extractTokenFromRequest } from "./services/auth.js";
-import { registerSchema, loginSchema, insertAnalysisSchema } from "@shared/schema";
+import { registerSchema, loginSchema, insertAnalysisSchema, type User } from "@shared/schema";
+
+interface AuthenticatedRequest extends Request {
+  user: User;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication middleware
-  const authenticateUser = async (req: any, res: any, next: any) => {
+  const authenticateUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const token = extractTokenFromRequest(req.headers.authorization);
     if (!token) {
       return res.status(401).json({ message: 'Authentication required' });
