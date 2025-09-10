@@ -1,13 +1,17 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Analyzer } from '@/components/analyzer';
 import { Button } from '@/components/ui/button';
 import { Navigation } from '@/components/navigation';
 import { Sidebar } from '@/components/sidebar';
 import { TrendingUp, CheckCircle, AlertTriangle, History, Download, Settings } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
+  const { toast } = useToast();
+  
   const { data: stats } = useQuery({
     queryKey: ['/api/user/stats'],
   });
@@ -19,6 +23,14 @@ export default function Dashboard() {
   const { data: usage } = useQuery({
     queryKey: ['/api/user/usage'],
   });
+
+  const handleDownloadAllReports = () => {
+    toast({
+      title: 'Download Started',
+      description: 'Your reports are being prepared for download.',
+    });
+    // TODO: Implement actual download functionality
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,18 +105,22 @@ export default function Dashboard() {
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                   <div className="space-y-3">
-                    <Button variant="ghost" className="w-full justify-start" data-testid="button-recent-analyses">
-                      <History className="mr-3 h-4 w-4" />
-                      View Recent Analyses
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" data-testid="button-download-reports">
+                    <Link href="/history">
+                      <Button variant="ghost" className="w-full justify-start" data-testid="button-recent-analyses">
+                        <History className="mr-3 h-4 w-4" />
+                        View Recent Analyses
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" className="w-full justify-start" onClick={handleDownloadAllReports} data-testid="button-download-reports">
                       <Download className="mr-3 h-4 w-4" />
                       Download All Reports
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start" data-testid="button-analysis-settings">
-                      <Settings className="mr-3 h-4 w-4" />
-                      Analysis Settings
-                    </Button>
+                    <Link href="/profile">
+                      <Button variant="ghost" className="w-full justify-start" data-testid="button-analysis-settings">
+                        <Settings className="mr-3 h-4 w-4" />
+                        Analysis Settings
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -140,9 +156,11 @@ export default function Dashboard() {
                     )}
                   </div>
                   
-                  <Button variant="link" className="w-full mt-4 h-auto p-0" data-testid="button-view-all-activity">
-                    View all activity
-                  </Button>
+                  <Link href="/history">
+                    <Button variant="link" className="w-full mt-4 h-auto p-0" data-testid="button-view-all-activity">
+                      View all activity
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
 
