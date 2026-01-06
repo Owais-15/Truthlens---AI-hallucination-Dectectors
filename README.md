@@ -275,4 +275,4 @@ For support, email support@truthlens.ai or create an issue in this repository.
 
 ---
 
-**Built with ❤️ by Owais-15**
+**Built by Sayed Mohammad Owais Hussain**
