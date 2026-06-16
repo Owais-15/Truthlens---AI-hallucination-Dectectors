@@ -2,6 +2,19 @@
 
 **TruthLens** is a comprehensive AI-powered fact-checking application that analyzes content for factual accuracy, identifies potential hallucinations, and provides detailed verification results with source citations.
 
+---
+
+## 📚 Research & Publication
+
+This repository contains the official source code implementation for the research paper: 
+**"TruthLens: A Real-Time Neuro-Symbolic Approach to Hallucination Detection in Large Language Models"**
+
+- **Authors:** Sairaj Shinde, Khushi Shukla, Sayed Mohammad Owais Hussain, Minakshi Ghorpade
+- **Conference:** Presented at the International Conference on Informatics, Computing and Network (IC-ICN) during MultiCon-W 2026.
+- **Recognition:** Awarded a *Certificate of Appreciation* by the conference committee. [View Presentation Certificate](./docs/IC-ICN_MultiCon_Presentation_Certificate.pdf)
+- **Read the Paper:** [Available on Zenodo](https://doi.org/10.5281/zenodo.20721200)
+
+---
 ## 🚀 Features
 
 - **AI-Powered Analysis**: Uses Google Gemini AI for intelligent content analysis
@@ -262,12 +275,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📞 Support
 
-For support, email support@truthlens.ai or create an issue in this repository.
 
 ## 🙏 Acknowledgments
 
+- **Thakur College of Engineering & Technology** for institutional support.
+- **Research Team:** Sairaj Shinde, Khushi Shukla, and Faculty Guide Minakshi Ghorpade.
+- Google Gemini AI for advanced language model capabilities.
+- Exa API for reliable source verification.
 - Google Gemini AI for advanced language model capabilities
 - Exa API for reliable source verification
 - Replit for development and deployment platform
