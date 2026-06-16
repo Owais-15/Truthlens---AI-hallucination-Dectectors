@@ -11,7 +11,7 @@ This repository contains the official source code implementation for the researc
 
 - **Authors:** Sairaj Shinde, Khushi Shukla, Sayed Mohammad Owais Hussain, Minakshi Ghorpade
 - **Conference:** Presented at the International Conference on Informatics, Computing and Network (IC-ICN) during MultiCon-W 2026.
-- **Recognition:** Awarded a *Certificate of Appreciation* by the conference committee. [View Presentation Certificate](./docs/IC-ICN_MultiCon_Presentation_Certificate.pdf)
+- **Recognition:** Awarded a *Certificate of Appreciation* by the conference committee. [View Presentation Certificate](./docs/Certificate.pdf)
 - **Read the Paper:** [Available on Zenodo](https://doi.org/10.5281/zenodo.20721200)
 
 ---
